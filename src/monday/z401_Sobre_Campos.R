@@ -19,9 +19,9 @@ require("ggplot2")
 require("dplyr")
 
 # Poner la carpeta de la materia de SU computadora local
-setwd("/home/aleb/dmeyf2022")
+setwd("C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF")
 # Poner sus semillas
-semillas <- c(17, 19, 23, 29, 31)
+semillas <- c(412339, 869587, 417227, 290923, 437357)
 
 # Cargamos el dataset
 dataset <- fread("./datasets/competencia1_2022.csv")
@@ -99,7 +99,7 @@ print(sum(is.na(dtrain$Visa_fechaalta)))
 
 # Imputamos los nulos de nuestra variable con ceros
 dtrain[, Visa_fechaalta_2 := ifelse(is.na(Visa_fechaalta), 
-            0,
+            -1,
             Visa_fechaalta)] 
 
 # Chequeamos el número de nulos de la nueva variable
@@ -169,6 +169,7 @@ calcular_ganancia(modelo3, dtest)
 
 ## Actividad para medir bien la influencia de la media en de esa variable, 
 ## escriba una función de experimento que refleje la transformación  
+# mean_Visa_fechaalta <- mean(dtrain$Visa_fechaalta, na.rm = T)
 
 experimento <- function() {
     gan <- c()
@@ -192,8 +193,7 @@ experimento <- function() {
     mean(gan)
 }
 
-# Veamos la 
-## Preguntas
+# Veamos la Preguntas
 ## - ¿Qué sucede si una transformación que depende del dataset no se aplica de
 ##   esta manera?
 ## - A como funciona el rpart ¿Qué decisión toma sobre esta variable?
