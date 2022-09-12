@@ -21,9 +21,9 @@ require("treeClust")
 require("ggplot2")
 
 # Poner la carpeta de la materia de SU computadora local
-setwd("/home/aleb/dmeyf2022")
+setwd("C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF")
 # Poner sus semillas
-semillas <- c(17, 19, 23, 29, 31)
+semillas <- c(412339, 869587, 417227, 290923, 437357)
 
 # Cargamos el dataset
 dataset <- fread("./datasets/competencia1_2022.csv")
@@ -42,7 +42,7 @@ ggplot(dataset, aes(x = ctrx_quarter)) +
   facet_grid(clase_ternaria ~ .) +
   geom_density()
 
-# Zoom por favor
+# Zoom por favor 
 ggplot(dataset[ctrx_quarter < 300, ], aes(x = ctrx_quarter)) +
   facet_grid(clase_ternaria ~ .) +
   geom_density()
