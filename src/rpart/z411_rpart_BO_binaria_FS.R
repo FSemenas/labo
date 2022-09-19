@@ -132,7 +132,7 @@ ArbolesCrossValidation  <- function( semilla, data, param, qfolds, pagrupa )
                           seq(qfolds), # 1 2 3 4 5
                           MoreArgs= list( data, param), 
                           SIMPLIFY= FALSE,
-                          mc.cores= 5 )   #debe ir 1 si es Windows
+                          mc.cores= 1 )   #debe ir 1 si es Windows
 
   data[ , fold := NULL ]
 
@@ -157,7 +157,7 @@ EstimarGanancia  <- function( x )
                            ksemilla_azar,
                            MoreArgs= list ( dtrain, param=x, qfolds= xval_folds, pagrupa= "clase_ternaria" ),
                            SIMPLIFY= FALSE,
-                           mc.cores = 5 )  #debe ir 1 si es Windows
+                           mc.cores = 1 )  #debe ir 1 si es Windows
 
 
    ganancia_promedio  <- mean( unlist( vganancias ) )
@@ -184,16 +184,98 @@ dataset[ foto_mes==202101, clase_binaria :=  ifelse( clase_ternaria=="CONTINUA",
 #defino los datos donde entreno
 dtrain  <- dataset[ foto_mes==202101, ]
 
+################ FEATURE ENGINEERING  #####################
+###### Features que se pueden calcular en train y en test de forma conjunta
+# Deberían ser aquellos que no usan valores globales o de otras filas.######
+
+sufijos_visa_master <- c(  "_delinquency",  "_mfinanciacion_limite",
+                           "_msaldototal",  "_msaldopesos",  "_msaldodolares",
+                           "_mconsumospesos",  "_mconsumosdolares","_mlimitecompra",
+                           "_madelantopesos",  "_madelantodolares")
+
+# Creo los campos suma de visa y master
+for (suf in sufijos_visa_master){
+  n_visa = paste0("Visa",suf)
+  n_master = paste0("Master",suf)
+  n_nuevo = paste0("Visa_plus_Master",suf)
+  dtrain <- dtrain[,(n_nuevo) := ifelse(is.na(get(n_visa)),0,get(n_visa)) + 
+                       ifelse(is.na(get(n_master)),0,get(n_master))]
+  
+}
+
+# Hay otros campos que no son sufijos, pero también son sumables.
+dtrain[,c_tarjeta_visa_master := ctarjeta_visa+ctarjeta_master]
+dtrain[,c_tarjeta_visa_master_transacciones := ctarjeta_visa_transacciones+ctarjeta_master_transacciones]
+dtrain[,m_tarjeta_visa_master_consumo := mtarjeta_visa_consumo+mtarjeta_master_consumo]
+
+# Creo campos consumo / limite como medida de actividad
+dtrain[,"Visa_mconsumospesos_sobre_mlimitecompra":=Visa_mconsumospesos / Visa_mlimitecompra]
+dtrain[,"Master_mconsumospesos_sobre_mlimitecompra":=Master_mconsumospesos / Master_mlimitecompra]
+
+# antiguedad sobre edad (proporción de su vida como cliente de banco)
+dtrain[,"antiguedad_proporcion_edad":=(cliente_antiguedad/12) / cliente_edad]
+
+# Rankeo variables.
+prefix <- "r_"
+
+quantiles <- list("cliente_edad"=10,
+                  "cliente_antiguedad"=4,
+                  "mpayroll"=10)
+
+for (var in names(quantiles)) {
+  dtrain[, (paste(prefix, var,quantiles[[var]], sep = "")) := ntile(get(var), quantiles[[var]])]
+
+}
+
+# FS - Creo campo con cantidad de productos que tiene en el banco. A mas productos, mas dificil desenchufarse
+dtrain[,c_productos_banco := ccuenta_corriente+ccaja_ahorro+ctarjeta_visa+ctarjeta_master+cprestamos_personales+cprestamos_prendarios+cprestamos_hipotecarios+cseguro_vida+cseguro_auto+cseguro_vivienda+cseguro_accidentes_personales+ccaja_seguridad+ccuenta_debitos_automaticos]
+
+# FS - Creo campo con monto que le debe al banco por prestamos y tarjetas / limite tarjeta
+dtrain[,m_financiado_por_banco := mprestamos_personales+mprestamos_prendarios+mprestamos_hipotecarios+Master_msaldototal+Visa_msaldototal+Master_mlimitecompra+Visa_mlimitecompra]
+
+# FS - La rentabilidad anual la divido por 12 para ver la mensual y calculo este mes, a que % esta de esa mensual.
+dtrain[,m_ratio_rentabilidad := mrentabilidad/(mrentabilidad_annual/12)]
+
+# FS - La rentabilidad anual la divido por 12 para ver la mensual y calculo este mes, a que % esta de esa mensual.
+dtrain[,c_ratio_trx := (cpayroll_trx +cpayroll2_trx +cpagodeservicios +cpagomiscuentas +ctransferencias_emitidas +cextraccion_autoservicio +ccallcenter_transacciones +chomebanking_transacciones +ccajas_transacciones +ccajas_depositos +ccajas_extracciones +ccajas_otras +catm_trx +catm_trx_other +ctrx_quarter +cmobile_app_trx)/(ctrx_quarter/3)]
+
+# FS - Armo el árbol de decisión para sacar variables que quiero construir en base a las reglas del decision tree
+#arbolbinario <- rpart("clase_binaria ~ . -mcomisiones_mantenimiento -Visa_mpagado",
+#                      data =      dataset,
+#                      xval =      0,
+#                      cp =       -1,
+                      #                      minsplit =  98,
+                      #                      minbucket = 49,
+#                      maxdepth =  3)
+
+#grafico el arbol
+#prp(arbolbinario, extra=101, digits=5, branch=1, type=4, varlen=0, faclen=0)
+
+#print(arbolbinario)
+
+#print(arbolbinario$variable.importance)
+
+# PROPUESTOS POR GUSTAVO 
+
+dtrain[ , campo1 := as.integer(ctrx_quarter <13.5 & c_productos_banco < 3.5 & mactivos_margen < -43.6) ]
+dtrain[ , campo2 := as.integer(ctrx_quarter <13.5 & c_productos_banco < 3.5 & mactivos_margen >= -43.6) ]
+dtrain[ , campo3 := as.integer(ctrx_quarter <13.5 & c_productos_banco >= 3.5 & mcuentas_saldo < -7.53) ]
+dtrain[ , campo4 := as.integer(ctrx_quarter <13.5 & c_productos_banco >= 3.5 & mcuentas_saldo >= -7.53) ]
+dtrain[ , campo5 := as.integer(ctrx_quarter >=13.5 & Visa_status >= 8 & Visa_plus_Master_mfinanciacion_limite >=15043.73) ]
+dtrain[ , campo6 := as.integer(ctrx_quarter >=13.5 & Visa_status >= 8 & Visa_plus_Master_mfinanciacion_limite < 15043.73) ]
+dtrain[ , campo7 := as.integer(ctrx_quarter >=13.5 & Visa_status < 8 & ctrx_quarter < 37.5) ]
+dtrain[ , campo8 := as.integer(ctrx_quarter >=13.5 & Visa_status < 8 & ctrx_quarter >= 37.5) ]
+
 
 #creo la carpeta donde va el experimento
 # HT  representa  Hiperparameter Tuning
 dir.create( "./exp/",  showWarnings = FALSE ) 
-dir.create( "./exp/HT4110/", showWarnings = FALSE )
-setwd("./exp/HT4110/")   #Establezco el Working Directory DEL EXPERIMENTO
+dir.create( "./exp/HT4110_1/", showWarnings = FALSE )
+setwd("./exp/HT4110_1/")   #Establezco el Working Directory DEL EXPERIMENTO
 
 #defino los archivos donde guardo los resultados de la Bayesian Optimization
-archivo_log  <- "HT4110.txt"
-archivo_BO   <- "HT4110.RDATA"
+archivo_log  <- "HT4110_1.txt"
+archivo_BO   <- "HT4110_1.RDATA"
 
 #leo si ya existe el log, para retomar en caso que se se corte el programa
 GLOBAL_iteracion  <- 0
