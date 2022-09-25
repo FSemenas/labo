@@ -20,9 +20,9 @@ require("ggplot2")
 require("lightgbm")
 
 # Poner la carpeta de la materia de SU computadora local
-setwd("/home/aleb/dmeyf2022")
+setwd("C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF")
 # Poner sus semillas
-semillas <- c(17, 19, 23, 29, 31)
+semillas <- c(412339, 869587, 417227, 290923, 437357)
 
 # Cargamos los datasets y nos quedamos solo con 202101 y 202103
 dataset <- fread("./datasets/competencia2_2022.csv.gz")
@@ -108,12 +108,12 @@ model_lgbm_cv <- lgb.cv(
 
         # Parámetros que fueron sacados de los rf porque lo que anda se mete:
         feature_fraction = 0.50, # Porcentaje de columnas que van a usarse en un árbol
-        # feature_fraction_bynode si queremos que sea por nodo
+        # feature_fraction_bynode si queremos que sea por nodo y que funcione como el random forest
         bagging_fraction = 1.0, # % de registros a considerar en cada árbol
         extra_tree = FALSE, # Los puntos de corte los elige al azar.
 
         # Parámetros de las famosas regularizaciones!!
-        lambda_l1 = 0.0,
+        lambda_l1 = 0.0, #Si esta en 0, no regulariza nada.
         lambda_l2 = 0.0,
         min_gain_to_split = 0.0,
 
