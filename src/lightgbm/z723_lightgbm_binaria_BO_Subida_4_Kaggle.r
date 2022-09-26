@@ -16,6 +16,11 @@ gc()             #garbage collection
 require("data.table")
 require("rlist")
 
+require("rpart")
+require("ggplot2")
+require("dplyr")
+require("rpart.plot")
+
 require("lightgbm")
 
 #paquetes necesarios para la Bayesian Optimization
@@ -45,8 +50,8 @@ PARAM  <- list()
 
 PARAM$experimento  <- "HT7231"
 
-#PARAM$input$dataset       <- "./datasets/competencia2_2022.csv.gz"
-PARAM$input$dataset       <- "C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF/datasets/competencia2_2022.csv.gz"
+PARAM$input$dataset       <- "./datasets/competencia2_2022.csv.gz"
+#PARAM$input$dataset       <- "C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF/datasets/competencia2_2022.csv.gz"
 PARAM$input$training      <- c( 202103 )
 
 PARAM$trainingstrategy$undersampling  <-  1.0   # un undersampling de 0.1  toma solo el 10% de los CONTINUA
@@ -239,7 +244,57 @@ dtrain  <- lgb.Dataset( data= data.matrix(  dataset[ training == 1L, campos_buen
                         weight=  dataset[ training == 1L, ifelse( clase_ternaria=="BAJA+2", 1.0000002, ifelse( clase_ternaria=="BAJA+1",  1.0000001, 1.0) )],
                         free_raw_data= FALSE  )
 
+################ FEATURE ENGINEERING  #####################
 
+sufijos_visa_master <- c(  "_delinquency",  "_mfinanciacion_limite",
+                           "_msaldototal",  "_msaldopesos",  "_msaldodolares",
+                           "_mconsumospesos",  "_mconsumosdolares","_mlimitecompra",
+                           "_madelantopesos",  "_madelantodolares")
+
+# Creo los campos suma de visa y master
+for (suf in sufijos_visa_master){
+  n_visa = paste0("Visa",suf)
+  n_master = paste0("Master",suf)
+  n_nuevo = paste0("Visa_plus_Master",suf)
+  dataset <- dataset[,(n_nuevo) := ifelse(is.na(get(n_visa)),0,get(n_visa)) + 
+                       ifelse(is.na(get(n_master)),0,get(n_master))]
+  
+}
+
+# Hay otros campos que no son sufijos, pero también son sumables.
+dataset[,c_tarjeta_visa_master := ctarjeta_visa+ctarjeta_master]
+dataset[,c_tarjeta_visa_master_transacciones := ctarjeta_visa_transacciones+ctarjeta_master_transacciones]
+dataset[,m_tarjeta_visa_master_consumo := mtarjeta_visa_consumo+mtarjeta_master_consumo]
+
+# Creo campos consumo / limite como medida de actividad
+dataset[,"Visa_mconsumospesos_sobre_mlimitecompra":=Visa_mconsumospesos / Visa_mlimitecompra]
+dataset[,"Master_mconsumospesos_sobre_mlimitecompra":=Master_mconsumospesos / Master_mlimitecompra]
+
+# antiguedad sobre edad (proporción de su vida como cliente de banco)
+dataset[,"antiguedad_proporcion_edad":=(cliente_antiguedad/12) / cliente_edad]
+
+# Rankeo variables.
+prefix <- "r_"
+
+quantiles <- list("cliente_edad"=10,
+                  "cliente_antiguedad"=4,
+                  "mpayroll"=10)
+
+for (var in names(quantiles)) {
+  dataset[, (paste(prefix, var,quantiles[[var]], sep = "")) := ntile(get(var), quantiles[[var]])]
+}
+
+# FS - Creo campo con cantidad de productos que tiene en el banco. A mas productos, mas dificil desenchufarse
+dataset[,c_productos_banco := ccuenta_corriente+ccaja_ahorro+ctarjeta_visa+ctarjeta_master+cprestamos_personales+cprestamos_prendarios+cprestamos_hipotecarios+cseguro_vida+cseguro_auto+cseguro_vivienda+cseguro_accidentes_personales+ccaja_seguridad+ccuenta_debitos_automaticos]
+
+# FS - Creo campo con monto que le debe al banco por prestamos y tarjetas / limite tarjeta
+dataset[,m_financiado_por_banco := mprestamos_personales+mprestamos_prendarios+mprestamos_hipotecarios+Master_msaldototal+Visa_msaldototal+Master_mlimitecompra+Visa_mlimitecompra]
+
+# FS - La rentabilidad anual la divido por 12 para ver la mensual y calculo este mes, a que % esta de esa mensual.
+dataset[,m_ratio_rentabilidad := mrentabilidad/(mrentabilidad_annual/12)]
+
+# FS - La rentabilidad anual la divido por 12 para ver la mensual y calculo este mes, a que % esta de esa mensual.
+dataset[,c_ratio_trx := (cpayroll_trx +cpayroll2_trx +cpagodeservicios +cpagomiscuentas +ctransferencias_emitidas +cextraccion_autoservicio +ccallcenter_transacciones +chomebanking_transacciones +ccajas_transacciones +ccajas_depositos +ccajas_extracciones +ccajas_otras +catm_trx +catm_trx_other +ctrx_quarter +cmobile_app_trx)/(ctrx_quarter/3)]
 
 #Aqui comienza la configuracion de la Bayesian Optimization
 funcion_optimizar  <- EstimarGanancia_lightgbm   #la funcion que voy a maximizar
@@ -272,4 +327,5 @@ if( !file.exists( kbayesiana ) ) {
 
 
 quit( save="no" )
+
 
