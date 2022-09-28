@@ -68,12 +68,12 @@ campos_buenos  <-  setdiff(  campos_buenos,  c( "foto_mes","clase_ternaria","cla
 
 
 dir.create( "./exp/",  showWarnings = FALSE ) 
-dir.create( "./exp/DR6130/", showWarnings = FALSE )
-setwd("./exp/DR6130/")
+dir.create( "./exp/DR6136/", showWarnings = FALSE )
+setwd("./exp/DR6136/")
 
 
 
-pdf("densidades_01_03.pdf")
+pdf("densidades_03_05.pdf")
 
 for( campo in  campos_buenos )
 {
