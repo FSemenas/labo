@@ -47,8 +47,8 @@ PARAM  <- list()
 
 PARAM$experimento  <- "HT7232_3"
 
-#PARAM$input$dataset       <- "./datasets/competencia2_2022.csv.gz"
-PARAM$input$dataset       <- "C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF/datasets/competencia2_2022.csv.gz"
+PARAM$input$dataset       <- "./datasets/competencia2_2022.csv.gz"
+#PARAM$input$dataset       <- "C:/Users/flore/OneDrive/Escritorio/Flor/Maestria/DMEyF/datasets/competencia2_2022.csv.gz"
 PARAM$input$training      <- c( 202103 )
 
 PARAM$trainingstrategy$undersampling  <-  1   # un undersampling de 0.1  toma solo el 10% de los CONTINUA
@@ -129,8 +129,8 @@ EstimarGanancia_lightgbm  <- function( x )
                           verbosity= -100,
                           max_depth=  -1,         # -1 significa no limitar,  por ahora lo dejo fijo
                           min_gain_to_split= 0.0, #por ahora, lo dejo fijo
-#                          lambda_l1= 0.0,         #por ahora, lo dejo fijo
-#                          lambda_l2= 0.0,         #por ahora, lo dejo fijo
+                          #                          lambda_l1= 0.0,         #por ahora, lo dejo fijo
+                          #                          lambda_l2= 0.0,         #por ahora, lo dejo fijo
                           max_bin = 31,
                           num_iterations= 9999,   #un numero muy grande, lo limita early_stopping_rounds
                           force_row_wise= TRUE,   #para que los alumnos no se atemoricen con tantos warning
@@ -193,7 +193,7 @@ EstimarGanancia_lightgbm  <- function( x )
 
 #Aqui se debe poner la carpeta de la computadora local
 setwd("~/buckets/b1/")   #Establezco el Working Directory
-#setwd("/home/santiago/Documents/Maestría/EyF/")
+
 #cargo el dataset donde voy a entrenar el modelo
 dataset  <- fread( PARAM$input$dataset )
 
