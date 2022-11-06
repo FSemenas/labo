@@ -51,6 +51,7 @@ TS  <- readLines( arch_TS, warn=FALSE )
 #leo el dataset donde voy a entrenar el modelo final
 arch_dataset  <- paste0( base_dir, "exp/", TS, "/dataset_train_final.csv.gz" )
 dataset  <- fread( arch_dataset )
+dataset<-dataset[!(dataset$foto_mes=="202006" | dataset$foto_mes=="202007"),]
 
 #leo el dataset donde voy a aplicar el modelo final
 arch_future  <- paste0( base_dir, "exp/", TS, "/dataset_future.csv.gz" )
